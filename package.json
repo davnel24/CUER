@@ -1,0 +1,24 @@
+{
+  "name": "cuer",
+  "version": "1.0.0",
+  "description": "QR-based pool table queue for pubs",
+  "main": "index.js",
+  "scripts": {
+  "start": "node server.js"
+},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davnel24/CUER.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/davnel24/CUER/issues"
+  },
+  "homepage": "https://github.com/davnel24/CUER#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
