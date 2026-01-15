@@ -8,6 +8,11 @@ const tables = {}; // simple in-memory storage
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
 
+//Re-direct to UI
+app.get("/", (req, res) => {
+  res.redirect("/table/test-pub-1/ui");
+});
+
 // Serve table UI at /table/:id/ui
 app.get("/table/:id/ui", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "table.html"));
