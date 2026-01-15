@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pub Pool Table</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+    h1, h2 { text-align: center; }
+    #queueList li, #currentPlayers li { margin: 8px 0; font-size: 1.2em; padding: 4px; border-radius: 4px; }
+    li.me { background-color: #ffff99; } /* highlights your own nickname */
+    input, button { padding: 10px; margin: 5px 0; font-size: 1em; width: 100%; box-sizing: border-box; }
+    button { cursor: pointer; }
+    #controls { display: flex; gap: 10px; flex-wrap: wrap; }
+    #controls button { flex: 1; }
+  </style>
+</head>
+<body>
+  <h1 id="tableName">Pub Pool Table</h1>
+
+  <div>
+    <label>Nickname:</label>
+    <input type="text" id="nickname" placeholder="Enter your nickname">
+    <div id="controls">
+      <button id="joinBtn">Join Queue</button>
+      <button id="winBtn">I Won</button>
+    </div>
+  <p id="statusMessage" style="text-align:center; font-weight:bold;"></p>
+  </div>
+
+  <h2>Table Owner:</h2>
+  <p id="tableOwner"></p>
+  <p id="ownerStreak"></p>
+
+  <h2>Current Game:</h2>
+  <ul id="currentPlayers"></ul>
+
+  <h2>Queue:</h2>
+  <p id="queueInfo" style="text-align:center; font-weight:bold;"></p>
+  <ul id="queueList"></ul>
+
+  <script>
+    const tableId = window.location.pathname.split('/')[2];
+    const nicknameInput = document.getElementById("nickname");
+    const queueEl = document.getElementById("queueList");
+    const tableOwnerEl = document.getElementById("tableOwner");
+    const currentPlayersEl = document.getElementById("currentPlayers");
+
+    // Load nickname from localStorage
+    const savedName = localStorage.getItem("playerNickname");
+    if (savedName) nicknameInput.value = savedName;
+
+    // Join button
+    document.getElementById("joinBtn").addEventListener("click", async () => {
+      const name = nicknameInput.value.trim();
+      if (!name) return alert("Enter a nickname");
+      localStorage.setItem("playerNickname", name);
+
+      const res = await fetch(`/table/${tableId}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+
+      const data = await res.json();
+      if (data.error) return alert(data.error);
+      fetchTable();
+    });
+
+    // Win button
+    document.getElementById("winBtn").addEventListener("click", async () => {
+      const winnerName = localStorage.getItem("playerNickname");
+      if (!winnerName) return alert("Set your nickname first with Join button");
+
+      const res = await fetch(`/table/${tableId}/win`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ winner: winnerName })
+      });
+
+      const data = await res.json();
+      if (data.error) return alert(data.error);
+      fetchTable();
+    });
+
+    // Fetch table
+    async function fetchTable() {
+  const res = await fetch(`/table/${tableId}`);
+  const data = await res.json();
+
+  queueEl.innerHTML = "";
+  currentPlayersEl.innerHTML = "";
+
+  const myName = localStorage.getItem("playerNickname");
+  const game = data.currentGame;
+
+  // --- Table Owner ---
+  tableOwnerEl.textContent = game?.tableOwner
+    ? `🌟 ${game.tableOwner}`
+    : "-";
+
+  // --- Streak ---
+  const streak = game?.streak || 0;
+  document.getElementById("ownerStreak").textContent =
+    streak > 0 ? `🔥 Streak: ${streak}` : "";
+
+  // --- Current players ---
+  let amIPlaying = false;
+
+  ["player1", "player2"].forEach((p, idx) => {
+    const name = game?.[p];
+    if (!name) return;
+
+    const li = document.createElement("li");
+    li.textContent = `Player ${idx + 1}: ${name}`;
+
+    if (name === myName) {
+      li.classList.add("me");
+      amIPlaying = true;
+    }
+
+    currentPlayersEl.appendChild(li);
+  });
+
+  // --- Queue ---
+  let myQueuePosition = null;
+
+  data.queue.forEach((name, index) => {
+    const li = document.createElement("li");
+    li.textContent = `${index + 1}. ${name}`;
+
+    if (name === myName) {
+      li.classList.add("me");
+      myQueuePosition = index + 1;
+    }
+
+    queueEl.appendChild(li);
+  });
+
+// --- Button & status control ---
+const winBtn = document.getElementById("winBtn");
+const joinBtn = document.getElementById("joinBtn");
+const statusMsg = document.getElementById("statusMessage");
+
+// Reset UI
+winBtn.style.display = "none";
+joinBtn.style.display = "none";
+statusMsg.textContent = "";
+
+// Am I the table owner?
+const amIOwner = game?.tableOwner === myName;
+
+// Am I currently playing?
+// (amIPlaying already tracks player1 or player2)
+
+// Am I in the queue?
+const amIQueued = myQueuePosition !== null;
+
+// CASE 1: I am table owner, waiting for challenger
+if (amIOwner && !game?.player2) {
+  statusMsg.textContent = "⏳ Waiting on a challenger...";
+}
+
+// CASE 2: I am playing and the game is active
+else if (amIPlaying && game?.player2) {
+  winBtn.style.display = "block";
+}
+
+// CASE 3: I am queued (waiting my turn)
+else if (amIQueued) {
+  statusMsg.textContent = `${myQueuePosition - 1} player(s) ahead of you`;
+}
+
+// CASE 4: I am a spectator (not involved at all)
+else {
+  joinBtn.style.display = "block";
+}
+}
+    // Auto-refresh
+    setInterval(fetchTable, 2000);
+    fetchTable();
+  </script>
+</body>
+</html>
